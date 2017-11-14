@@ -10,7 +10,7 @@ session <- rforcecom.login(username, password)
 # Retrieve data to delete -----------------------------------------------------------
 
 # Vector of objects to download
-objects.del <- c("AODiagnostic__c", "GPS_Point__c", "Other_crops__c", "Family_members__c",
+objects.del <- c("AODiagnostic__c", "Plot__c", "GPS_Point__c", "Other_crops__c", "Family_members__c",
                  "farmer__c", "Farm__c")
 # Retrieve objects data
 for(i in seq_along(objects.del)) {
@@ -89,6 +89,53 @@ batches_info <- rforcecom.createBulkBatch(session,
                                           batchSize = 20)
 
 # Batches status
+batches_status <- lapply(batches_info,
+                         FUN=function(x){
+                               rforcecom.checkBatchStatus(session,
+                                                          jobId=x$jobId,
+                                                          batchId=x$id)
+                         })
+status <- c()
+records.processed <- c()
+records.failed <- c()
+for(i in 1:length(batches_status)) {
+      status[i] <- batches_status[[i]]$state
+      records.processed[i] <- batches_status[[i]]$numberRecordsProcessed
+      records.failed[i] <- batches_status[[i]]$numberRecordsFailed
+}
+data.frame(status, records.processed, records.failed)
+
+
+# Batches details
+batches_detail <- lapply(batches_info,
+                         FUN=function(x){
+                               rforcecom.getBatchDetails(session,
+                                                         jobId=x$jobId,
+                                                         batchId=x$id)
+                         })
+
+# Close job
+close_job_info <- rforcecom.closeBulkJob(session, jobId=job_info$id)
+
+
+
+# Version 2 (partly manual) ---------------------------------------------------------
+
+
+load <- read.csv("C:/Users/Lenovo/rcadavid@grameenfoundation.org/7. Proyectos/Activos/Asia/UTZ-Mars Indonesia/M&E/5. Data management/Manually update farmers/farmers to update - load file.csv")
+
+load <- load[order(load$village__c), ]
+
+job_info <- rforcecom.createBulkJob(session, 
+                                    operation='update', 
+                                    object= 'FDP_submission__c')
+
+batches_info <- rforcecom.createBulkBatch(session, 
+                                          jobId=job_info$id, 
+                                          load, 
+                                          multiBatch = TRUE, 
+                                          batchSize = 1)
+
 batches_status <- lapply(batches_info,
                          FUN=function(x){
                                rforcecom.checkBatchStatus(session,
